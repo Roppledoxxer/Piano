@@ -1,0 +1,1071 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Advanced Web Piano</title>
+<style>
+  :root{
+    --bg:#0f1724;
+    --card:#0b1220;
+    --accent:#7dd3fc;
+    --muted:#94a3b8;
+    --white-key:#ffffff;
+    --black-key:#111827;
+    --key-border:#d1d5db;
+    font-family: Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;
+  }
+  *{box-sizing:border-box}
+  body{
+    margin:0;
+    min-height:100vh;
+    background:
+      radial-gradient(ellipse at 10% 10%, rgba(125,211,252,0.05), transparent 10%),
+      linear-gradient(180deg, #071025 0%, #081022 50%, #06111c 100%);
+    color: #e6eef8;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    padding:24px;
+  }
+
+  .app{
+    width:100%;
+    max-width:1200px;
+    background:linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01));
+    border-radius:12px;
+    padding:18px;
+    box-shadow: 0 8px 30px rgba(2,6,23,0.7);
+    display:grid;
+    grid-template-columns: 1fr 360px;
+    gap:16px;
+  }
+
+  header{
+    grid-column:1/-1;
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:12px;
+  }
+  header h1{margin:0;font-size:18px;letter-spacing:0.2px}
+  header p{margin:0;color:var(--muted);font-size:13px}
+
+  /* keyboard area */
+  .keyboard-wrap{
+    background:var(--card);
+    padding:12px;
+    border-radius:8px;
+    border:1px solid rgba(255,255,255,0.03);
+  }
+
+  .keys{
+    position:relative;
+    user-select:none;
+    height:260px;
+    display:flex;
+    align-items:flex-end;
+    gap:0;
+    touch-action:none;
+  }
+
+  .white{
+    position:relative;
+    width:44px;
+    height:100%;
+    background:var(--white-key);
+    border:1px solid var(--key-border);
+    border-bottom-left-radius:6px;
+    border-bottom-right-radius:6px;
+    display:flex;
+    align-items:flex-end;
+    justify-content:center;
+    padding-bottom:10px;
+    font-weight:600;
+    color:#111827;
+    box-shadow: 0 6px 18px rgba(2,6,23,0.15) inset;
+    z-index:1;
+  }
+  .white.active{background:linear-gradient(180deg,#fff7eb,#fff4e6); transform: translateY(4px); box-shadow: none}
+  .white .label{
+    font-size:12px;
+    text-align:center;
+    transform: translateY(4px);
+    pointer-events:none;
+  }
+
+  /* black keys overlay */
+  .black{
+    position:absolute;
+    width:30px;
+    height:62%;
+    background:linear-gradient(180deg,#111827,#0b1220);
+    border-radius:4px;
+    top:0;
+    z-index:2;
+    margin-left:-15px;
+    box-shadow: 0 8px 20px rgba(2,6,23,0.6);
+    display:flex;
+    align-items:flex-end;
+    justify-content:center;
+    padding-bottom:6px;
+    color:#ffffff;
+    font-weight:700;
+    border:1px solid rgba(255,255,255,0.03);
+  }
+  .black.active{background:linear-gradient(180deg,#1f2937,#111827); transform: translateY(6px);}
+
+  /* control panel */
+  .controls{
+    padding:12px;
+    background:var(--card);
+    border-radius:8px;
+    border:1px solid rgba(255,255,255,0.03);
+    display:flex;
+    flex-direction:column;
+    gap:12px;
+  }
+
+  .group{
+    background:linear-gradient(180deg, rgba(255,255,255,0.01), rgba(0,0,0,0.02));
+    padding:10px;
+    border-radius:8px;
+  }
+  label{display:block;font-size:12px;color:var(--muted);margin-bottom:6px}
+  input[type=range]{width:100%;}
+  .row{display:flex;gap:8px;align-items:center}
+  .btn{background:transparent;border:1px solid rgba(255,255,255,0.06);padding:8px 10px;border-radius:8px;color:var(--muted);cursor:pointer}
+  .btn.primary{background:linear-gradient(90deg,var(--accent),#60a5fa); color:#07203a;border:none}
+  .btn.toggle.active{background:#0b1220;border:1px solid rgba(125,211,252,0.15); color:var(--accent)}
+  .kbdmap{display:flex;gap:6px;flex-wrap:wrap}
+  .pill{padding:6px 8px;border-radius:6px;background:#08111a;border:1px solid rgba(255,255,255,0.02);font-size:12px;color:var(--muted)}
+
+  .visual{
+    height:120px;
+    background:linear-gradient(180deg, rgba(255,255,255,0.01), transparent);
+    border-radius:8px;
+    overflow:hidden;
+  }
+
+  footer{grid-column:1/-1;font-size:12px;color:var(--muted);display:flex;justify-content:space-between;align-items:center;margin-top:8px}
+
+  @media(max-width:980px){
+    .app{grid-template-columns:1fr; padding:12px}
+    .controls{order:2}
+    .keyboard-wrap{order:1}
+  }
+</style>
+</head>
+<body>
+  <main class="app" id="app">
+    <header>
+      <div>
+        <h1>Advanced Web Piano</h1>
+        <p>Click/touch keys, use keyboard, record, adjust ADSR, sustain, export WAV.</p>
+      </div>
+      <div style="display:flex;gap:8px;align-items:center">
+        <button class="btn" id="helpBtn" title="Short help">?</button>
+        <div style="font-size:12px;color:var(--muted)">Audio: WebAudio • No downloads required</div>
+      </div>
+    </header>
+
+    <section class="keyboard-wrap" aria-label="Piano keyboard">
+      <div style="display:flex;gap:10px;margin-bottom:8px;align-items:center">
+        <div class="pill" id="octaveLabel">Range: C3 — B5</div>
+        <div class="row" style="gap:6px">
+          <button class="btn" id="octDown">Octave -</button>
+          <button class="btn" id="octUp">Octave +</button>
+          <button class="btn toggle" id="sustainBtn" title="Hold sustain">Sustain</button>
+        </div>
+        <div style="flex:1"></div>
+        <div class="pill">Computer keys: z s x d c v g b h n j m</div>
+      </div>
+
+      <div class="keys" id="keys" role="list"></div>
+
+      <div style="display:flex;gap:8px;margin-top:12px;align-items:center">
+        <div style="flex:1">
+          <label for="velocity">Velocity (pointer Y or slider)</label>
+          <input type="range" id="velocity" min="0.05" max="1" step="0.01" value="0.9">
+        </div>
+        <div style="width:120px">
+          <label for="masterVol">Master</label>
+          <input type="range" id="masterVol" min="0" max="1" step="0.01" value="0.9">
+        </div>
+      </div>
+    </section>
+
+    <aside class="controls" aria-label="Piano controls">
+      <div class="group">
+        <label>ADSR Envelope</label>
+        <div style="display:flex;gap:8px">
+          <div style="flex:1">
+            <label>Attack <span id="atkVal">0.01</span>s</label>
+            <input type="range" id="attack" min="0" max="1" step="0.01" value="0.01">
+          </div>
+          <div style="flex:1">
+            <label>Decay <span id="decVal">0.2</span>s</label>
+            <input type="range" id="decay" min="0" max="1.5" step="0.01" value="0.2">
+          </div>
+        </div>
+        <div style="display:flex;gap:8px;margin-top:8px">
+          <div style="flex:1">
+            <label>Sustain <span id="susVal">0.6</span></label>
+            <input type="range" id="sustain" min="0" max="1" step="0.01" value="0.6">
+          </div>
+          <div style="flex:1">
+            <label>Release <span id="relVal">1.2</span>s</label>
+            <input type="range" id="release" min="0" max="5" step="0.01" value="1.2">
+          </div>
+        </div>
+      </div>
+
+      <div class="group">
+        <label>Effects & synth</label>
+        <div class="row" style="margin-bottom:8px">
+          <button class="btn toggle" id="chorusBtn">Chorus</button>
+          <button class="btn toggle" id="reverbBtn">Reverb</button>
+          <button class="btn" id="midiBtn">Enable MIDI</button>
+        </div>
+        <label>Filter cutoff</label>
+        <input type="range" id="cutoff" min="200" max="9000" step="1" value="6000">
+      </div>
+
+      <div class="group">
+        <label>Recorder & Playback</label>
+        <div style="display:flex;gap:8px;align-items:center;margin-bottom:8px">
+          <button class="btn primary" id="recBtn">Record</button>
+          <button class="btn" id="stopBtn">Stop</button>
+          <button class="btn" id="playBtn">Play</button>
+        </div>
+
+        <div style="display:flex;gap:8px;align-items:center">
+          <label style="width:56px">BPM</label>
+          <input type="number" id="bpm" min="40" max="240" value="120" style="width:80px">
+          <button class="btn toggle" id="metronomeBtn">Metronome</button>
+          <div style="flex:1"></div>
+          <button class="btn" id="exportWav">Export WAV</button>
+        </div>
+      </div>
+
+      <div class="group">
+        <label>Visualizer</label>
+        <div class="visual" id="visual"></div>
+      </div>
+
+      <div class="group" style="display:flex;gap:8px;align-items:center;justify-content:space-between">
+        <div style="font-size:13px;color:var(--muted)">
+          <div>Recorded events: <span id="recCount">0</span></div>
+          <div id="status" style="color:var(--muted);font-size:12px">Idle</div>
+        </div>
+        <div style="text-align:right">
+          <button class="btn" id="clearRec">Clear</button>
+        </div>
+      </div>
+
+    </aside>
+
+    <footer>
+      <div>Tip: Click/touch a key. Hold sustain, shift octave, record and export WAV.</div>
+      <div style="color:var(--muted)">Built with WebAudio • No external libraries</div>
+    </footer>
+  </main>
+
+<script>
+/*
+  Advanced Web Piano
+  - Generates a keyboard UI, handles pointer and keyboard input
+  - Simple additive synth + noise + chorus + simple reverb
+  - ADSR controls
+  - Recorder (records note on/offs, can playback and export to WAV using OfflineAudioContext)
+  - Metronome
+  - Designed to be self-contained and modern-browser friendly
+*/
+
+/* ---------- Utilities ---------- */
+const noteFreq = (noteNumber) => 440 * Math.pow(2, (noteNumber - 69) / 12);
+// Convert note name to midi number C4 = 60
+const noteToMidi = (note) => {
+  const names = ['C','C#','D','D#','E','F','F#','G','G#','A','A#','B'];
+  const match = note.match(/^([A-G]#?)(-?\d)$/);
+  if(!match) return null;
+  return names.indexOf(match[1]) + (parseInt(match[2]) + 1) * 12;
+};
+
+const midiToName = (m) => {
+  const names = ['C','C#','D','D#','E','F','F#','G','G#','A','A#','B'];
+  const n = ((m % 12) + 12) % 12;
+  const octave = Math.floor(m/12) - 1;
+  return names[n] + octave;
+};
+
+/* ---------- UI hooks ---------- */
+const keysEl = document.getElementById('keys');
+const velocitySlider = document.getElementById('velocity');
+const sustainBtn = document.getElementById('sustainBtn');
+const octUp = document.getElementById('octUp');
+const octDown = document.getElementById('octDown');
+const octaveLabel = document.getElementById('octaveLabel');
+const masterVol = document.getElementById('masterVol');
+
+const attackEl = document.getElementById('attack');
+const decayEl = document.getElementById('decay');
+const sustainEl = document.getElementById('sustain');
+const releaseEl = document.getElementById('release');
+const atkVal = document.getElementById('atkVal');
+const decVal = document.getElementById('decVal');
+const susVal = document.getElementById('susVal');
+const relVal = document.getElementById('relVal');
+
+const recBtn = document.getElementById('recBtn');
+const stopBtn = document.getElementById('stopBtn');
+const playBtn = document.getElementById('playBtn');
+const recCount = document.getElementById('recCount');
+const status = document.getElementById('status');
+const clearRecBtn = document.getElementById('clearRec');
+const exportWavBtn = document.getElementById('exportWav');
+const bpmEl = document.getElementById('bpm');
+const metronomeBtn = document.getElementById('metronomeBtn');
+
+const chorusBtn = document.getElementById('chorusBtn');
+const reverbBtn = document.getElementById('reverbBtn');
+const cutoffEl = document.getElementById('cutoff');
+
+const visual = document.getElementById('visual');
+const helpBtn = document.getElementById('helpBtn');
+
+let audioCtx = null;
+
+/* ---------- Keyboard layout config ---------- */
+/*
+ We'll generate keys between baseMidiStart and baseMidiEnd inclusive.
+ Default: C3(48) to B5(83) -> three octaves (36 notes).
+ */
+let baseStart = 48; // C3
+let baseEnd = 83;   // B5
+let octaveShift = 0;
+
+function updateOctaveLabel(){
+  const start = baseStart + octaveShift*12;
+  const end = baseEnd + octaveShift*12;
+  octaveLabel.textContent = `Range: ${midiToName(start)} — ${midiToName(end)}`;
+}
+
+/* Computer keyboard mapping (partial) - typical piano layout mapping) */
+const keyboardMap = {
+  // first row (Z-X-C...) for white keys left to right
+  // We'll populate dynamically by mapping to the white keys in order
+};
+
+/* ---------- Audio graph components ---------- */
+function ensureAudio(){
+  if(!audioCtx){
+    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    analyser = audioCtx.createAnalyser();
+    analyser.fftSize = 2048;
+    const master = audioCtx.createGain();
+    master.gain.value = parseFloat(masterVol.value);
+    master.connect(audioCtx.destination);
+    analyser.connect(master);
+    masterNode = master;
+    // visual setup
+    setupVisualizer();
+    console.log('AudioContext created');
+  }
+}
+let masterNode = null;
+let analyser = null;
+
+/* ---------- Synth engine ---------- */
+const activeVoices = new Map(); // key => {gainNode, nodes...}
+let sustain = false;
+
+function makeVoice(midi, when, velocity=0.9, noteDuration=null){
+  ensureAudio();
+  const now = when ?? audioCtx.currentTime;
+  const freq = noteFreq(midi);
+
+  // nodes
+  const output = audioCtx.createGain();
+  output.gain.value = 1;
+
+  // filter
+  const filter = audioCtx.createBiquadFilter();
+  filter.type = 'lowpass';
+  filter.frequency.value = parseFloat(cutoffEl.value);
+
+  // main oscillator (additive-ish)
+  const osc1 = audioCtx.createOscillator();
+  osc1.type = 'sine';
+  osc1.frequency.value = freq;
+  // detuned osc for warmth
+  const osc2 = audioCtx.createOscillator();
+  osc2.type = 'triangle';
+  osc2.frequency.value = freq * 2;
+  const osc3 = audioCtx.createOscillator();
+  osc3.type = 'sine';
+  osc3.frequency.value = freq * 0.5;
+
+  // noise (short bite to mimic hammer)
+  const noise = audioCtx.createBufferSource();
+  const buf = audioCtx.createBuffer(1, audioCtx.sampleRate * 1, audioCtx.sampleRate);
+  const arr = buf.getChannelData(0);
+  for(let i=0;i<arr.length;i++){
+    arr[i] = (Math.random()*2-1) * (i<2000 ? 0.8 : 0.1); // stronger at start
+  }
+  noise.buffer = buf;
+  noise.loop = false;
+
+  // voice gain envelope
+  const gainNode = audioCtx.createGain();
+  gainNode.gain.value = 0;
+
+  // small stereo panner
+  const panner = audioCtx.createStereoPanner();
+  const pan = ( (midi % 12) - 6 ) / 12; // left/right spread
+  panner.pan.value = pan;
+
+  // connect chain
+  osc1.connect(gainNode);
+  osc2.connect(gainNode);
+  osc3.connect(gainNode);
+  noise.connect(gainNode);
+  gainNode.connect(filter);
+  filter.connect(panner);
+  panner.connect(output);
+
+  // simple chorus (detune + delay)
+  let chorusDelay = null;
+  if(chorusBtn.classList.contains('active')){
+    chorusDelay = audioCtx.createDelay();
+    chorusDelay.delayTime.value = 0.02 + (Math.random()*0.03);
+    const chorusGain = audioCtx.createGain(); chorusGain.gain.value = 0.2;
+    output.connect(chorusDelay);
+    chorusDelay.connect(chorusGain);
+    chorusGain.connect(panner); // feedback into main chain
+  }
+
+  // simple reverb using feedback delays
+  let reverbGain = null;
+  if(reverbBtn.classList.contains('active')){
+    const d1 = audioCtx.createDelay();
+    const d2 = audioCtx.createDelay();
+    d1.delayTime.value = 0.03;
+    d2.delayTime.value = 0.067;
+    const g1 = audioCtx.createGain(); g1.gain.value = 0.25;
+    const g2 = audioCtx.createGain(); g2.gain.value = 0.18;
+    output.connect(d1); d1.connect(g1); g1.connect(panner);
+    output.connect(d2); d2.connect(g2); g2.connect(panner);
+  }
+
+  // connect through analyser to master
+  panner.connect(analyser);
+
+  // start nodes
+  osc1.start(now);
+  osc2.start(now);
+  osc3.start(now);
+  noise.start(now);
+
+  // ADSR
+  const a = parseFloat(attackEl.value);
+  const d = parseFloat(decayEl.value);
+  const s = parseFloat(sustainEl.value);
+  const r = parseFloat(releaseEl.value);
+  const maxGain = velocity;
+
+  const g = gainNode.gain;
+  g.cancelScheduledValues(now);
+  g.setValueAtTime(0.0001, now);
+  g.linearRampToValueAtTime(maxGain, now + a);
+  g.linearRampToValueAtTime(maxGain * s, now + a + d);
+
+  function stopVoice(offTime=null){
+    const t = offTime ?? audioCtx.currentTime;
+    g.cancelScheduledValues(t);
+    g.setValueAtTime(g.value, t);
+    g.linearRampToValueAtTime(0.0001, t + r);
+    // stop oscillators after release to release resources
+    const stopAt = t + r + 0.1;
+    osc1.stop(stopAt); osc2.stop(stopAt); osc3.stop(stopAt);
+    noise.stop(stopAt);
+    // cleanup: disconnect later
+    setTimeout(()=>{ 
+      try{ osc1.disconnect(); osc2.disconnect(); osc3.disconnect(); noise.disconnect(); gainNode.disconnect(); filter.disconnect(); panner.disconnect(); }catch(e){}
+    }, (r+0.2)*1000);
+  }
+
+  return {
+    midi, freq, startTime: now, stop: stopVoice, nodes: {osc1,osc2,osc3,noise,gainNode,filter,panner}
+  };
+}
+
+/* ---------- Key UI generation ---------- */
+const whiteOrder = ['C','D','E','F','G','A','B'];
+const keyList = []; // will hold objects {midi,name,isBlack,el}
+function isBlackKey(keyName){
+  return keyName.includes('#');
+}
+function buildKeyboard(){
+  keysEl.innerHTML = '';
+  keyList.length = 0;
+  const start = baseStart + octaveShift*12;
+  const end = baseEnd + octaveShift*12;
+  const whiteCount = [];
+  // create white keys container as flex items
+  for(let m=start;m<=end;m++){
+    const name = midiToName(m);
+    const black = name.includes('#');
+    // build white keys in order (we create for all but position blacks absolutely)
+    if(!black){
+      const w = document.createElement('div');
+      w.className = 'white';
+      w.dataset.midi = m;
+      w.setAttribute('role','button');
+      const lbl = document.createElement('div');
+      lbl.className = 'label';
+      lbl.textContent = name; // letter notes shown on keys
+      w.appendChild(lbl);
+      keysEl.appendChild(w);
+      keyList.push({midi:m,name,black:false,el:w});
+    } else {
+      // We'll still manufacture a placeholder for z-ordering then absolutely position later
+      keyList.push({midi:m,name,black:true,el:null});
+    }
+  }
+  // Now absolutely position black keys above white keys
+  // Find white key elements sequence to calculate positions
+  const whites = Array.from(keysEl.querySelectorAll('.white'));
+  // For each black note between whites, find index and position
+  // We'll compute left offsets by counting white keys to the left.
+  const whiteNames = whites.map(w => midiToName(parseInt(w.dataset.midi)));
+  // Create a map midi->white index (left edge)
+  const whiteIndices = {};
+  whites.forEach((w,idx)=>{ whiteIndices[parseInt(w.dataset.midi)] = idx; });
+
+  // To place black keys, iterate through midi range and for blacks create element and place between surrounding whites
+  for(let m=start;m<=end;m++){
+    const name = midiToName(m);
+    if(name.includes('#')){
+      // find previous white midi (m-1 or so)
+      // find left white index as index of nearest lower white midi
+      let leftMidi = m-1;
+      while(leftMidi>=start && midiToName(leftMidi).includes('#')) leftMidi--;
+      if(leftMidi < start) leftMidi = start;
+      const leftIndex = whites.findIndex(w=>parseInt(w.dataset.midi)===leftMidi);
+      if(leftIndex === -1) continue;
+      const blackEl = document.createElement('div');
+      blackEl.className = 'black';
+      blackEl.dataset.midi = m;
+      blackEl.textContent = midiToName(m).replace(/\d+/,''); // show letter
+      // compute left offset: position between white[leftIndex] and white[leftIndex+1]
+      const leftKey = whites[leftIndex];
+      // compute offset in px relative to keysEl
+      const rect = leftKey.getBoundingClientRect();
+      // We'll use CSS left via percentage calculation based on index
+      const totalWhites = whites.length;
+      const percentLeft = (leftIndex + 1) / totalWhites * 100;
+      blackEl.style.left = `calc(${percentLeft}% - 15px)`;
+      keysEl.appendChild(blackEl);
+      // push to keyList
+      const idx = keyList.findIndex(k=>k.midi===m);
+      if(idx!==-1) keyList[idx].el = blackEl;
+      else keyList.push({midi:m,name,black:true,el:blackEl});
+    }
+  }
+
+  // Add pointer and keyboard handlers
+  attachKeyHandlers();
+  updateKeyStyles();
+}
+
+/* ---------- Input handling ---------- */
+let pointerDown = false;
+let pointerStartY = null;
+let activePointers = new Map(); // pointerId->midi
+let keyboardNoteMap = {}; // maps physical keyboard to midi (for white keys in order)
+
+function attachKeyHandlers(){
+  // build keyboard mapping dynamically to white keys left-to-right
+  const whiteKeys = Array.from(keysEl.querySelectorAll('.white'));
+  const defaultMap = ['z','s','x','d','c','v','g','b','h','n','j','m',',','.','/','q','2','w']; // more than needed
+  keyboardNoteMap = {};
+  whiteKeys.forEach((el,idx)=>{
+    const k = defaultMap[idx] || null;
+    if(k){
+      keyboardNoteMap[k] = parseInt(el.dataset.midi);
+    }
+  });
+
+  // mouse/pointer events
+  keysEl.onpointerdown = (e) => {
+    e.preventDefault();
+    ensureAudio();
+    if(e.pointerType === 'pen' || e.pointerType === 'touch' || e.pointerType === 'mouse'){
+      pointerDown = true;
+      keysEl.setPointerCapture(e.pointerId);
+      handlePointerDown(e);
+    }
+  };
+  keysEl.onpointermove = (e) => {
+    if(pointerDown){
+      handlePointerMove(e);
+    }
+  };
+  keysEl.onpointerup = (e) => {
+    keysEl.releasePointerCapture?.(e.pointerId);
+    handlePointerUp(e);
+    pointerDown = false;
+  };
+  keysEl.onpointercancel = (e) => {
+    handlePointerUp(e);
+    pointerDown = false;
+  };
+
+  // keyboard events
+  window.addEventListener('keydown', (ev) => {
+    if(ev.repeat) return;
+    const key = ev.key.toLowerCase();
+    if(key in keyboardNoteMap){
+      const midi = keyboardNoteMap[key];
+      const vel = parseFloat(velocitySlider.value);
+      noteOn(midi, vel);
+      // simulate visual active
+      markKeyActive(midi, true);
+    } else {
+      // map octave shift and others
+      if(key === ',' ) { octaveShift--; buildKeyboard(); updateOctaveLabel(); }
+      if(key === '.') { octaveShift++; buildKeyboard(); updateOctaveLabel(); }
+      if(key === ' ') { sustain = !sustain; sustainBtn.classList.toggle('active', sustain); }
+    }
+  });
+  window.addEventListener('keyup', (ev) => {
+    const key = ev.key.toLowerCase();
+    if(key in keyboardNoteMap){
+      const midi = keyboardNoteMap[key];
+      noteOff(midi);
+      markKeyActive(midi, false);
+    }
+  });
+
+  // click/tap listeners for programmatic elements
+  sustainBtn.onclick = () => { sustain = !sustain; sustainBtn.classList.toggle('active', sustain); };
+  octUp.onclick = () => { octaveShift++; buildKeyboard(); updateOctaveLabel(); };
+  octDown.onclick = () => { octaveShift--; buildKeyboard(); updateOctaveLabel(); };
+
+  // attach click on key elements (delegation)
+  keysEl.addEventListener('pointerdown', (ev) => {
+    // handled above
+  }, {passive:false});
+}
+
+function handlePointerDown(e){
+  const targetMidi = getMidiFromEventTarget(e);
+  if(targetMidi == null) return;
+  const vel = pointerVelocityFromEvent(e);
+  noteOn(targetMidi, vel);
+  activePointers.set(e.pointerId, targetMidi);
+  markKeyActive(targetMidi, true);
+}
+function handlePointerMove(e){
+  const prev = activePointers.get(e.pointerId);
+  const targetMidi = getMidiFromEventTarget(e);
+  if(targetMidi !== prev){
+    // release previous
+    if(prev!=null) { noteOff(prev); markKeyActive(prev,false); }
+    if(targetMidi!=null){
+      const vel = pointerVelocityFromEvent(e);
+      noteOn(targetMidi, vel);
+      activePointers.set(e.pointerId, targetMidi);
+      markKeyActive(targetMidi, true);
+    } else {
+      activePointers.delete(e.pointerId);
+    }
+  }
+}
+function handlePointerUp(e){
+  const midi = activePointers.get(e.pointerId);
+  if(midi!=null){
+    noteOff(midi);
+    markKeyActive(midi, false);
+    activePointers.delete(e.pointerId);
+  }
+}
+function getMidiFromEventTarget(e){
+  // find nearest key element
+  const path = e.composedPath?.() || (e.path || []);
+  for(const node of path){
+    if(node && node.dataset && node.dataset.midi) return parseInt(node.dataset.midi);
+  }
+  // fallback: compute by x coordinate within keyboard relative pos
+  return null;
+}
+function pointerVelocityFromEvent(e){
+  // if user uses pointer capture, use vertical position to indicate stronger when near top
+  try{
+    const rect = keysEl.getBoundingClientRect();
+    const y = e.clientY - rect.top;
+    const v = 1 - (y / rect.height);
+    return Math.min(Math.max(v, parseFloat(velocitySlider.min)), parseFloat(velocitySlider.max));
+  }catch(e){
+    return parseFloat(velocitySlider.value);
+  }
+}
+
+/* ---------- Note on/off, voice management ---------- */
+function noteOn(midi, velocity=0.9){
+  ensureAudio();
+  // prevent double triggering (allow retrigger but keep voice record)
+  const v = makeVoice(midi, audioCtx.currentTime, velocity);
+  activeVoices.set(midi, v);
+  // recorder
+  if(isRecording) {
+    recordEvent({type:'noteon', midi, time: performance.now() - recordStartTime, velocity});
+    recCount.textContent = recordedEvents.length;
+  }
+}
+function noteOff(midi){
+  const v = activeVoices.get(midi);
+  if(!v) return;
+  if(sustain){
+    // queue until sustain is released
+    suspendedVoices.push(v);
+    // don't call stop
+  } else {
+    v.stop();
+  }
+  activeVoices.delete(midi);
+  if(isRecording){
+    recordEvent({type:'noteoff', midi, time: performance.now() - recordStartTime});
+    recCount.textContent = recordedEvents.length;
+  }
+}
+let suspendedVoices = [];
+function releaseSustain(){
+  for(const v of suspendedVoices){
+    v.stop();
+  }
+  suspendedVoices = [];
+}
+
+/* Visual key marking */
+function markKeyActive(midi, on){
+  const el = keysEl.querySelector(`[data-midi="${midi}"]`);
+  if(el){
+    if(on) el.classList.add('active'); else el.classList.remove('active');
+  }
+}
+
+/* Update key styles (place active class etc.) */
+function updateKeyStyles(){
+  // nothing complex here; re-evaluate active states
+  for(const k of keyList){
+    if(k.el){
+      k.el.classList.toggle('black', k.black);
+    }
+  }
+}
+
+/* ---------- Recorder ---------- */
+let isRecording = false;
+let recordedEvents = [];
+let recordStartTime = 0;
+function recordEvent(ev){
+  recordedEvents.push(ev);
+}
+recBtn.onclick = () => {
+  if(!audioCtx) ensureAudio();
+  recordedEvents = [];
+  recordStartTime = performance.now();
+  isRecording = true;
+  recBtn.classList.add('primary');
+  status.textContent = 'Recording';
+  recCount.textContent = recordedEvents.length;
+};
+stopBtn.onclick = () => {
+  isRecording = false;
+  recBtn.classList.remove('primary');
+  status.textContent = 'Stopped';
+  recCount.textContent = recordedEvents.length;
+  // stop all active voices
+  for(const [m,v] of activeVoices.entries()){
+    v.stop();
+  }
+  activeVoices.clear();
+  if(!sustain){
+    releaseSustain();
+  }
+};
+playBtn.onclick = async () => {
+  if(recordedEvents.length === 0) return;
+  if(!audioCtx) ensureAudio();
+  const now = audioCtx.currentTime + 0.1;
+  status.textContent = 'Playing';
+  // schedule events (they were recorded using performance.now - recordStartTime in ms)
+  const startT = recordedEvents[0].time;
+  const baseTime = recordedEvents[0] ? now - (startT/1000) : now;
+  for(const ev of recordedEvents){
+    const t = baseTime + (ev.time/1000);
+    if(ev.type === 'noteon') {
+      setTimeout(()=>{ noteOn(ev.midi, ev.velocity ?? parseFloat(velocitySlider.value)); }, (t - audioCtx.currentTime)*1000);
+    } else if(ev.type === 'noteoff') {
+      setTimeout(()=>{ noteOff(ev.midi); }, (t - audioCtx.currentTime)*1000);
+    }
+  }
+  // finish status update
+  const last = recordedEvents[recordedEvents.length-1];
+  const finishMs = (last.time/1000) + 2000;
+  setTimeout(()=>{ status.textContent='Idle'; }, finishMs);
+};
+
+clearRecBtn.onclick = () => {
+  recordedEvents = [];
+  recCount.textContent = 0;
+  status.textContent = 'Cleared';
+};
+
+exportWavBtn.onclick = async () => {
+  if(recordedEvents.length === 0) { alert('No recording to export.'); return; }
+  status.textContent = 'Exporting WAV (rendering)...';
+  try{
+    const wavBlob = await renderRecordingToWav();
+    const url = URL.createObjectURL(wavBlob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'piano_recording.wav';
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+    status.textContent = 'WAV exported';
+  } catch(err){
+    console.error(err);
+    status.textContent = 'Export failed';
+    alert('Failed to export WAV: ' + err.message);
+  }
+};
+
+/* ---------- Offline render to WAV ---------- */
+async function renderRecordingToWav(){
+  // create an OfflineAudioContext to render the recording to a PCM buffer
+  const sampleRate = 44100;
+  // compute duration
+  const lastMS = recordedEvents.length ? recordedEvents[recordedEvents.length-1].time : 0;
+  const durationSec = (lastMS / 1000) + 4; // padding
+  const offline = new OfflineAudioContext(2, Math.ceil(durationSec * sampleRate), sampleRate);
+
+  // recreate a minimal synth in offline context
+  function offNoteOn(midi, when, velocity=0.9){
+    const freq = 440 * Math.pow(2, (midi - 69) / 12);
+    const osc1 = offline.createOscillator(); osc1.type='sine'; osc1.frequency.value = freq;
+    const osc2 = offline.createOscillator(); osc2.type='triangle'; osc2.frequency.value = freq*2;
+    const osc3 = offline.createOscillator(); osc3.type='sine'; osc3.frequency.value = freq*0.5;
+    const gain = offline.createGain(); gain.gain.value = 0;
+    const filter = offline.createBiquadFilter(); filter.type='lowpass'; filter.frequency.value = parseFloat(cutoffEl.value);
+    const panner = offline.createStereoPanner(); panner.pan.value = ((midi%12)-6)/12;
+    osc1.connect(gain); osc2.connect(gain); osc3.connect(gain);
+    gain.connect(filter); filter.connect(panner); panner.connect(offline.destination);
+    const a=parseFloat(attackEl.value), d=parseFloat(decayEl.value), s=parseFloat(sustainEl.value), r=parseFloat(releaseEl.value);
+    const g = gain.gain;
+    g.setValueAtTime(0.0001, when);
+    g.linearRampToValueAtTime(velocity, when + a);
+    g.linearRampToValueAtTime(velocity*s, when + a + d);
+    osc1.start(when); osc2.start(when); osc3.start(when);
+    return {osc1,osc2,osc3,gain,stopAt:(offT)=>{ g.cancelScheduledValues(offT); g.setValueAtTime(g.value, offT); g.linearRampToValueAtTime(0.0001, offT + r); osc1.stop(offT + r + 0.1); osc2.stop(offT + r + 0.1); osc3.stop(offT + r + 0.1); }};
+  }
+
+  // schedule events
+  const firstT = recordedEvents.length ? recordedEvents[0].time : 0;
+  const baseTime = 0.1 - (firstT/1000);
+  // active map
+  const offActive = new Map();
+  for(const ev of recordedEvents){
+    const t = baseTime + (ev.time/1000);
+    if(ev.type==='noteon'){
+      const v = offNoteOn(ev.midi, t, ev.velocity ?? parseFloat(velocitySlider.value));
+      offActive.set(ev.midi, v);
+    } else if(ev.type === 'noteoff'){
+      const v = offActive.get(ev.midi);
+      if(v) v.stopAt(t), offActive.delete(ev.midi);
+    }
+  }
+  // release any remaining
+  for(const [m,v] of offActive.entries()){
+    v.stopAt(durationSec - 0.5);
+  }
+
+  const rendered = await offline.startRendering();
+  // convert to WAV
+  function interleave(left, right){
+    const length = left.length + right.length;
+    const result = new Float32Array(length);
+    let index = 0, inputIndex = 0;
+    while (index < length) {
+      result[index++] = left[inputIndex];
+      result[index++] = right[inputIndex];
+      inputIndex++;
+    }
+    return result;
+  }
+  const left = rendered.getChannelData(0);
+  const right = rendered.getChannelData(1);
+  const interleaved = interleave(left, right);
+
+  // WAV encoding (16-bit PCM)
+  function writeString(view, offset, string) {
+    for (let i = 0; i < string.length; i++) {
+        view.setUint8(offset + i, string.charCodeAt(i));
+    }
+  }
+  const buffer = new ArrayBuffer(44 + interleaved.length * 2);
+  const view = new DataView(buffer);
+  /* RIFF identifier */
+  writeString(view, 0, 'RIFF');
+  view.setUint32(4, 36 + interleaved.length * 2, true);
+  writeString(view, 8, 'WAVE');
+  writeString(view, 12, 'fmt ');
+  view.setUint32(16, 16, true);
+  view.setUint16(20, 1, true);
+  view.setUint16(22, 2, true); // stereo
+  view.setUint32(24, sampleRate, true);
+  view.setUint32(28, sampleRate * 4, true);
+  view.setUint16(32, 4, true);
+  view.setUint16(34, 16, true);
+  writeString(view, 36, 'data');
+  view.setUint32(40, interleaved.length * 2, true);
+  // write pcm samples
+  let offset = 44;
+  for (let i = 0; i < interleaved.length; i++, offset += 2) {
+      const s = Math.max(-1, Math.min(1, interleaved[i]));
+      view.setInt16(offset, s < 0 ? s * 0x8000 : s * 0x7FFF, true);
+  }
+  return new Blob([view], { type: 'audio/wav' });
+}
+
+/* ---------- Simple Visualizer ---------- */
+let canvas, ctx, animationId;
+function setupVisualizer(){
+  visual.innerHTML = '';
+  canvas = document.createElement('canvas');
+  canvas.width = visual.clientWidth;
+  canvas.height = visual.clientHeight;
+  visual.appendChild(canvas);
+  ctx = canvas.getContext('2d');
+
+  function resize(){
+    canvas.width = visual.clientWidth;
+    canvas.height = visual.clientHeight;
+  }
+  window.addEventListener('resize', resize);
+  resize();
+
+  const bufferLength = analyser.frequencyBinCount;
+  const dataArray = new Uint8Array(bufferLength);
+  function draw(){
+    animationId = requestAnimationFrame(draw);
+    analyser.getByteTimeDomainData(dataArray);
+    ctx.fillStyle = '#07111a';
+    ctx.fillRect(0,0,canvas.width,canvas.height);
+    ctx.lineWidth = 2;
+    ctx.strokeStyle = '#7dd3fc';
+    ctx.beginPath();
+    const sliceWidth = canvas.width / bufferLength;
+    let x=0;
+    for(let i=0;i<bufferLength;i++){
+      const v = dataArray[i]/128.0;
+      const y = v * canvas.height/2;
+      if(i===0) ctx.moveTo(x,y);
+      else ctx.lineTo(x,y);
+      x += sliceWidth;
+    }
+    ctx.lineTo(canvas.width, canvas.height/2);
+    ctx.stroke();
+  }
+  draw();
+}
+
+/* ---------- Metronome ---------- */
+let metronomeInterval = null;
+metronomeBtn.onclick = () => {
+  if(metronomeInterval){
+    clearInterval(metronomeInterval); metronomeInterval = null; metronomeBtn.classList.remove('active');
+  } else {
+    const bpm = parseInt(bpmEl.value) || 120;
+    const period = 60000 / bpm;
+    metronomeInterval = setInterval(()=>{ playClick(); }, period);
+    metronomeBtn.classList.add('active');
+  }
+};
+function playClick(){
+  ensureAudio();
+  const t = audioCtx.currentTime;
+  const g = audioCtx.createGain();
+  g.gain.value = 0.0001;
+  g.connect(audioCtx.destination);
+  const o = audioCtx.createOscillator(); o.type='square'; o.frequency.value = 1000;
+  o.connect(g);
+  g.gain.setValueAtTime(0.0001, t);
+  g.gain.linearRampToValueAtTime(0.5, t+0.001);
+  g.gain.exponentialRampToValueAtTime(0.0001, t+0.12);
+  o.start(t); o.stop(t+0.13);
+}
+
+/* ---------- UI binding & small helpers ---------- */
+attackEl.oninput = ()=>{ atkVal.textContent = attackEl.value; };
+decayEl.oninput = ()=>{ decVal.textContent = decayEl.value; };
+sustainEl.oninput = ()=>{ susVal.textContent = sustainEl.value; };
+releaseEl.oninput = ()=>{ relVal.textContent = releaseEl.value; };
+masterVol.oninput = ()=>{ if(masterNode) masterNode.gain.value = parseFloat(masterVol.value); };
+cutoffEl.oninput = ()=>{ /* live filter freq used at creation time */ };
+
+helpBtn.onclick = ()=> {
+  alert('Short help:\\n• Click/touch keys to play\\n• Use computer keys z s x d c v g b h n j m to play\\n• Velocity from pointer vertical position or the slider\\n• Record then Play or Export WAV (renders offline)\\n• Toggle Sustain, Reverb, Chorus, change ADSR and Filter');
+};
+
+/* MIDI (optional) */
+document.getElementById('midiBtn').onclick = async function(){
+  if(!navigator.requestMIDIAccess){ alert('WebMIDI not supported in this browser.'); return; }
+  try{
+    const access = await navigator.requestMIDIAccess();
+    const inputs = access.inputs.values();
+    for(const input of inputs){
+      input.onmidimessage = (msg) => {
+        const [status, data1, data2] = msg.data;
+        const cmd = status >> 4;
+        const channel = status & 0xf;
+        if(cmd === 9){ // note on
+          if(data2>0) noteOn(data1, data2 / 127);
+          else noteOff(data1);
+        } else if(cmd === 8){ // note off
+          noteOff(data1);
+        }
+      };
+    }
+    alert('MIDI enabled. Play from your device.');
+  }catch(err){ alert('Failed to enable MIDI: ' + err); }
+};
+
+/* chorus/reverb toggles */
+chorusBtn.onclick = ()=> { chorusBtn.classList.toggle('active'); };
+reverbBtn.onclick = ()=> { reverbBtn.classList.toggle('active'); };
+
+/* sustain and release handling */
+sustainBtn.onclick = ()=> { sustain = !sustain; sustainBtn.classList.toggle('active', sustain); };
+
+/* Recording helpers already attached */
+
+/* Start up */
+updateOctaveLabel();
+buildKeyboard();
+status.textContent = 'Ready';
+
+/* release sustain when toggled off */
+sustainBtn.addEventListener('click', () => { if(!sustain) releaseSustain(); });
+
+/* Prevent passive default on touch for melodies */
+['touchstart','touchmove','touchend'].forEach(ev => {
+  document.addEventListener(ev, (e)=>{/* allow default on inputs only */}, {passive:false});
+});
+</script>
+</body>
+</html>
